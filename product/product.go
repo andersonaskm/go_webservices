@@ -1,4 +1,4 @@
-package main
+package product
 
 type Product struct {
 	ProductID    int    `json:"productId"`
