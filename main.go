@@ -6,7 +6,10 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/andersonaskm/go_webservices/database"
 	"github.com/andersonaskm/go_webservices/product"
+	"github.com/andersonaskm/go_webservices/receipt"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type ordersHandler struct {
@@ -76,6 +79,11 @@ func main() {
 	fmt.Println(orderDetail.ProductID, orderDetail.Quantity, orderDetail.UnitPrice)
 
 	fmt.Println("-----------------------------")
+	fmt.Println("Connect To DataBase")
+	fmt.Println("-----------------------------")
+	database.SetUpDatabase()
+
+	fmt.Println("-----------------------------")
 	fmt.Println("Basic Handler")
 	fmt.Println("-----------------------------")
 
@@ -83,7 +91,8 @@ func main() {
 		func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error
 	*/
 
-	product.SetupRoutes(apiBasePath)
+	product.SetupRoutes(apiBasePath) // products
+	receipt.SetupRoutes(apiBasePath) // receipts
 
 	http.Handle("/orders", &ordersHandler{Message: "Orders called!"})
 	http.HandleFunc("/orders/details", orderDetailsHandler)

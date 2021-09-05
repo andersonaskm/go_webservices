@@ -3,7 +3,7 @@
         "manufacturer": "Johns-Jenkins",
         "sku": "p5z343vdS",
         "upc": "939581000000",
-        "unitPrice": "497.45",
+        "unitPrice": 497.45,
         "quantity": 9703,
         "productName": "sticky note"
     },
@@ -12,7 +12,7 @@
         "manufacturer": "Hessel, SChimmel and Feeney",
         "sku": "i7v300kmx",
         "upc": "740979000000",
-        "unitPrice": "282.29",
+        "unitPrice": 282.29,
         "quantity": 9217,
         "productName": "leg warmers"
     },
@@ -21,7 +21,7 @@
         "manufacturer": "Swaniawski, Bartoletti and Bruen",
         "sku": "q0L657ys7",
         "upc": "111730000000",
-        "unitPrice": "436.26",
+        "unitPrice": 436.26,
         "quantity": 5905,
         "productName": "lamp shade"
     }

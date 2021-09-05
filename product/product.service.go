@@ -28,7 +28,11 @@ func productsHandler(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 
 		// call getProductList from Data
-		productList := getProductList()
+		productList, errGetProductList := getProductList()
+		if errGetProductList != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
 		productsJson, err := json.Marshal(productList)
 		if err != nil {
@@ -53,9 +57,9 @@ func productsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// call addOrUddateProduct from Data
-		_, errAddOrUpdateProduct := addOrUpdateProduct(newProduct)
-		if errAddOrUpdateProduct != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+		_, errInsertProduct := insertProduct(newProduct)
+		if errInsertProduct != nil {
+			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -77,7 +81,11 @@ func productHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// call getProduct from Data
-	product := getProduct(productID)
+	product, errGetProduct := getProduct(productID)
+	if errGetProduct != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	if product == nil {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -110,7 +118,12 @@ func productHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// call addOrUpdateProduct from Data
-		addOrUpdateProduct(updatedProduct)
+		errUpdateProduct := updateProduct(updatedProduct)
+		if errUpdateProduct != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		//addOrUpdateProduct(updatedProduct)
 		w.WriteHeader(http.StatusOK)
 		return
 	case http.MethodDelete:

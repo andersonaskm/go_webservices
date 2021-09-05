@@ -1,6 +1,8 @@
 package product
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -8,6 +10,9 @@ import (
 	"os"
 	"sort"
 	"sync"
+	"time"
+
+	"github.com/andersonaskm/go_webservices/database"
 )
 
 var productMap = struct {
@@ -54,31 +59,92 @@ func loadProductMap() (map[int]Product, error) {
 }
 
 // obtem um produto pelo ID
-func getProduct(productID int) *Product {
-	productMap.RLock() // read lock to prevent another thread
-	defer productMap.RUnlock()
-	if product, ok := productMap.m[productID]; ok {
-		return &product
+func getProduct(productID int) (*Product, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	row := database.DbConn.QueryRowContext(ctx, `SELECT productId, manufacturer, sku, upc, unitPrice, quantity, productName 
+		FROM products WHERE productId = ?`, productID)
+
+	product := &Product{}
+	err := row.Scan(&product.ProductID,
+		&product.Manufacturer,
+		&product.Sku,
+		&product.Upc,
+		&product.UnitPrice,
+		&product.Quantity,
+		&product.ProductName)
+
+	if err == sql.ErrNoRows {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
 	}
-	return nil
+
+	return product, nil
+
+	// productMap.RLock() // read lock to prevent another thread
+	// defer productMap.RUnlock()
+	// if product, ok := productMap.m[productID]; ok {
+	// 	return &product
+	// }
+	// return nil
 }
 
 // exclui um produto por ID
-func removeProduct(productID int) {
-	productMap.Lock()
-	defer productMap.Unlock()
-	delete(productMap.m, productID)
+func removeProduct(productID int) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	_, err := database.DbConn.ExecContext(ctx, `DELETE FROM products WHERE productId = ?`, productID)
+	if err != nil {
+		return err
+	}
+	return nil
+	// productMap.Lock()
+	// defer productMap.Unlock()
+	// delete(productMap.m, productID)
 }
 
 // obtem a lista de produtos
-func getProductList() []Product {
-	productMap.RLock()
-	products := make([]Product, 0, len(productMap.m))
-	for _, value := range productMap.m {
-		products = append(products, value)
+func getProductList() ([]Product, error) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	results, errQuery := database.DbConn.QueryContext(ctx, `
+		SELECT productId, manufacturer, sku, upc, unitPrice, quantity, productName 
+		FROM products`)
+
+	if errQuery != nil {
+		return nil, errQuery
 	}
-	productMap.RUnlock()
-	return products
+
+	defer results.Close()
+
+	products := make([]Product, 0)
+
+	for results.Next() {
+		var product Product
+		results.Scan(&product.ProductID,
+			&product.Manufacturer,
+			&product.Sku,
+			&product.Upc,
+			&product.UnitPrice,
+			&product.Quantity,
+			&product.ProductName)
+
+		products = append(products, product)
+	}
+
+	return products, nil
+
+	// productMap.RLock()
+	// products := make([]Product, 0, len(productMap.m))
+	// for _, value := range productMap.m {
+	// 	products = append(products, value)
+	// }
+	// productMap.RUnlock()
+	// return products
 }
 
 // obtem os identificadores de produtos ordenados
@@ -99,13 +165,47 @@ func getNextProductID() int {
 	return productIDs[len(productIDs)-1] + 1
 }
 
+// atualiza um produto
+func updateProduct(product Product) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	_, err := database.DbConn.ExecContext(ctx, `UPDATE products SET manufacturer=? WHERE productId=?`, product.Manufacturer, product.ProductID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func insertProduct(product Product) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	result, err := database.DbConn.ExecContext(ctx, `INSERT INTO products(manufacturer, sku, upc, unitPrice, quantity, productName) 
+	VALUES (?, ?, ?, ?, ?, ?)`, product.Manufacturer, product.Sku, product.Upc, product.UnitPrice, product.Quantity, product.ProductName)
+	if err != nil {
+		return 0, nil
+	}
+
+	insertID, errLastInsertId := result.LastInsertId()
+	if errLastInsertId != nil {
+		return 0, nil
+	}
+
+	return int(insertID), nil
+}
+
 // incluir ou atualizar um produto
 func addOrUpdateProduct(product Product) (int, error) {
 	addOrUpdateID := -1
 
 	if product.ProductID > 0 {
 
-		oldProduct := getProduct(product.ProductID)
+		oldProduct, errGetProduct := getProduct(product.ProductID)
+
+		if errGetProduct != nil {
+			return addOrUpdateID, errGetProduct
+		}
+
 		if oldProduct == nil {
 			return 0, fmt.Errorf("product id [%d] doesn't exist", product.ProductID)
 		}
