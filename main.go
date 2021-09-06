@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/andersonaskm/go_webservices/database"
 	"github.com/andersonaskm/go_webservices/product"
@@ -26,6 +28,11 @@ type OrderDetail struct {
 	ProductID int     `json:"productId"`
 	Quantity  int     `json:"quantity"`
 	UnitPrice float64 `json:"unitPrice"`
+}
+
+type BlogPost struct {
+	Title   string
+	Content string
 }
 
 func init() {
@@ -82,6 +89,19 @@ func main() {
 	fmt.Println("Connect To DataBase")
 	fmt.Println("-----------------------------")
 	database.SetUpDatabase()
+
+	fmt.Println("-----------------------------")
+	fmt.Println("Template")
+	fmt.Println("-----------------------------")
+	post := BlogPost{Title: "First Post", Content: "This is the first post content"}
+	tmpl, errTemplate := template.New("blog-tmpl").Parse(`<h1>{{.Title}}</h1><div><p>{{.Content}}</p></div>`)
+	if errTemplate != nil {
+		panic(errTemplate)
+	}
+	errTemplateExec := tmpl.Execute(os.Stdout, post)
+	if errTemplateExec != nil {
+		panic(errTemplateExec)
+	}
 
 	fmt.Println("-----------------------------")
 	fmt.Println("Basic Handler")

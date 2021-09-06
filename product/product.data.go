@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -159,6 +160,58 @@ func GetTopTenProducts() ([]Product, error) {
 		ORDER BY quantity DESC LIMIT 10`)
 
 	if errQuery != nil {
+		return nil, errQuery
+	}
+
+	defer results.Close()
+
+	products := make([]Product, 0)
+
+	for results.Next() {
+		var product Product
+		results.Scan(&product.ProductID,
+			&product.Manufacturer,
+			&product.Sku,
+			&product.Upc,
+			&product.UnitPrice,
+			&product.Quantity,
+			&product.ProductName)
+
+		products = append(products, product)
+	}
+
+	return products, nil
+}
+
+// pesquisa por dados de produtos
+func SearchForProductData(productFilter ProductReportFilter) ([]Product, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var queryArgs = make([]interface{}, 0)
+	var queryBuilder strings.Builder
+	queryBuilder.WriteString(`SELECT productId, manufacturer, sku, upc, unitPrice, quantity, productName 
+		FROM products
+		WHERE 1=1 `)
+
+	if productFilter.NameFilter != "" {
+		queryBuilder.WriteString(` AND productName LIKE ?`)
+		queryArgs = append(queryArgs, "%"+strings.ToLower(productFilter.NameFilter)+"%")
+	}
+
+	if productFilter.ManufacturerFilter != "" {
+		queryBuilder.WriteString(` AND manufacturer LIKE ?`)
+		queryArgs = append(queryArgs, "%"+strings.ToLower(productFilter.ManufacturerFilter)+"%")
+	}
+
+	if productFilter.SKUFilter != "" {
+		queryBuilder.WriteString(` AND sku LIKE ?`)
+		queryArgs = append(queryArgs, "%"+strings.ToLower(productFilter.SKUFilter)+"%")
+	}
+
+	results, errQuery := database.DbConn.QueryContext(ctx, queryBuilder.String(), queryArgs...)
+	if errQuery != nil {
+		log.Println(errQuery.Error())
 		return nil, errQuery
 	}
 
