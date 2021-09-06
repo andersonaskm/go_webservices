@@ -147,6 +147,41 @@ func getProductList() ([]Product, error) {
 	// return products
 }
 
+// obtem a lista dos 10 produtos principais
+func GetTopTenProducts() ([]Product, error) {
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	results, errQuery := database.DbConn.QueryContext(ctx, `
+		SELECT productId, manufacturer, sku, upc, unitPrice, quantity, productName 
+		FROM products
+		ORDER BY quantity DESC LIMIT 10`)
+
+	if errQuery != nil {
+		return nil, errQuery
+	}
+
+	defer results.Close()
+
+	products := make([]Product, 0)
+
+	for results.Next() {
+		var product Product
+		results.Scan(&product.ProductID,
+			&product.Manufacturer,
+			&product.Sku,
+			&product.Upc,
+			&product.UnitPrice,
+			&product.Quantity,
+			&product.ProductName)
+
+		products = append(products, product)
+	}
+
+	return products, nil
+}
+
 // obtem os identificadores de produtos ordenados
 func getProductIds() []int {
 	productMap.RLock()
